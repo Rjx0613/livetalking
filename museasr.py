@@ -1,9 +1,9 @@
 import time
 import numpy as np
 
-import queue
-from queue import Queue
-import multiprocessing as mp
+# import queue
+# from queue import Queue
+# import multiprocessing as mp
 from baseasr import BaseASR
 from musetalk.whisper.audio2feature import Audio2Feature
 
@@ -15,7 +15,7 @@ class MuseASR(BaseASR):
     def run_step(self):
         ############################################## extract audio feature ##############################################
         start_time = time.time()
-        for _ in range(self.batch_size*2):
+        for _ in range(self.batch_size*2): ## 两倍是每个音频块中间可能会出现重叠帧
             audio_frame,type=self.get_audio_frame()
             self.frames.append(audio_frame)
             self.output_queue.put((audio_frame,type))

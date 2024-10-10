@@ -13,7 +13,7 @@ class BaseASR:
 
         self.fps = opt.fps # 20 ms per frame
         self.sample_rate = 16000
-        self.chunk = self.sample_rate // self.fps # 320 samples per chunk (20ms * 16000 / 1000)
+        self.chunk = self.sample_rate // self.fps # 320 samples per chunk (20ms * 16000 / 1000) 每一帧包含的音频样本数 320
         self.queue = Queue()
         self.output_queue = mp.Queue()
 
@@ -27,13 +27,13 @@ class BaseASR:
 
         #self.warm_up()
 
-    def pause_talk(self):
-        self.queue.queue.clear()
+    def pause_talk(self): ## 清空队列,暂停说话
+        self.queue.queue.clear() 
 
     def put_audio_frame(self,audio_chunk): #16khz 20ms pcm
         self.queue.put(audio_chunk)
 
-    def get_audio_frame(self):        
+    def get_audio_frame(self): ## 从队列中获取音频帧，若队列为空则返回一个填充0的空帧，若有父类则需要从父类中获取音频流数据
         try:
             frame = self.queue.get(block=True,timeout=0.01)
             type = 0
@@ -48,7 +48,7 @@ class BaseASR:
 
         return frame,type 
 
-    def is_audio_frame_empty(self)->bool:
+    def is_audio_frame_empty(self)->bool: ## 检查音频帧队列是否为空
         return self.queue.empty()
 
     def get_audio_out(self):  #get origin audio pcm to nerf
@@ -65,5 +65,5 @@ class BaseASR:
     def run_step(self):
         pass
 
-    def get_next_feat(self,block,timeout):        
+    def get_next_feat(self,block,timeout): ## 从特征队列中获取下一个特征，用于模型的输入
         return self.feat_queue.get(block,timeout)

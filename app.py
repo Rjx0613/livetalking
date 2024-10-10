@@ -30,8 +30,12 @@ import string
 app = Flask(__name__)
 sockets = Sockets(app)
 nerfreals = []
-statreals = [] 
+statreals = []
 
+# proxies = {
+#     "http": "http://127.0.0.1:7890",
+#     "https": "http://127.0.0.1:7890"
+# }
     
 @sockets.route('/humanecho')
 def echo_socket(ws):
@@ -65,21 +69,24 @@ def echo_socket(ws):
 def llm_response(message,nerfreal):
     start = time.perf_counter()
     from openai import OpenAI
-    client = OpenAI(
-        # 如果您没有配置环境变量，请在此处用您的API Key进行替换
-        api_key=os.getenv("DASHSCOPE_API_KEY"),
-        # 填写DashScope SDK的base_url
-        base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
-    )
+    client = OpenAI()
     end = time.perf_counter()
     print(f"llm Time init: {end-start}s")
+    # completion = client.chat.completions.create(
+    #     model="qwen-plus",
+    #     messages=[{'role': 'system', 'content': 'You are a helpful assistant.'},
+    #               {'role': 'user', 'content': message}],
+    #     stream=True,
+    #     # 通过以下设置，在流式输出的最后一行展示token使用信息
+    #     stream_options={"include_usage": True}
+    # )
     completion = client.chat.completions.create(
-        model="qwen-plus",
-        messages=[{'role': 'system', 'content': 'You are a helpful assistant.'},
-                  {'role': 'user', 'content': message}],
-        stream=True,
-        # 通过以下设置，在流式输出的最后一行展示token使用信息
-        stream_options={"include_usage": True}
+        model="gpt-4o-mini",  # OpenAI 的 GPT-4 模型，你也可以使用 'gpt-3.5-turbo'
+        messages=[
+            {'role': 'system', 'content': 'You are a helpful assistant.'},
+            {'role': 'user', 'content': message}
+        ],
+        stream=True  # 启用流式输出
     )
     result=""
     first = True
@@ -93,6 +100,8 @@ def llm_response(message,nerfreal):
             msg = chunk.choices[0].delta.content
             lastpos=0
             #msglist = re.split('[,.!;:，。！?]',msg)
+            if msg is None:
+                continue
             for i, char in enumerate(msg):
                 if char in ",.!;:，。！？：；" :
                     result = result+msg[lastpos:i+1]
@@ -304,6 +313,8 @@ async def run(push_url):
 if __name__ == '__main__':
     multiprocessing.set_start_method('spawn')
     parser = argparse.ArgumentParser()
+
+    # 命令行传参
     parser.add_argument('--pose', type=str, default="data/data_kf.json", help="transforms.json, pose source")
     parser.add_argument('--au', type=str, default="data/au.csv", help="eye blink area")
     parser.add_argument('--torso_imgs', type=str, default="", help="torso images path")
