@@ -15,7 +15,7 @@ class MuseASR(BaseASR):
     def run_step(self):
         ############################################## extract audio feature ##############################################
         start_time = time.time()
-        for _ in range(self.batch_size*2): ## 两倍是每个音频块中间可能会出现重叠帧
+        for _ in range(self.batch_size*2): ## 由于滑动窗口的设置，需要多获取一些音频帧
             audio_frame,type=self.get_audio_frame()
             self.frames.append(audio_frame)
             self.output_queue.put((audio_frame,type))
@@ -33,4 +33,4 @@ class MuseASR(BaseASR):
         #self.audio_feats = self.audio_feats[-(self.stride_left_size + self.stride_right_size):]
         self.feat_queue.put(whisper_chunks)
         # discard the old part to save memory
-        self.frames = self.frames[-(self.stride_left_size + self.stride_right_size):]
+        self.frames = self.frames[-(self.stride_left_size + self.stride_right_size):] ## 每次留下二十帧在队列里作为历史消息
