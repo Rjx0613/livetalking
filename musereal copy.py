@@ -47,7 +47,7 @@ def read_imgs(img_list):
         frames.append(frame)
     return frames
 
-def __mirror_index(size, index):
+def __mirror_index(size, index): ## 用于实现列表的循环和反转的效果，当索引来到队尾时，再反向顺序便利，产生来回循环的效果
     #size = len(self.coord_list_cycle)
     turn = index // size
     res = index % size
@@ -59,7 +59,15 @@ def __mirror_index(size, index):
 @torch.no_grad()
 def inference(render_event,batch_size,latents_out_path,audio_feat_queue,audio_out_queue,res_frame_queue,
               ): #vae, unet, pe,timesteps
-    
+    """
+    render_event: 多进程事件对象，用于控制渲染进程的启动和停止
+    batch_size: 每次推理的音频帧数量
+    latents_out_path: 预先计算的latens的文件路径
+    audio_feat_queue: 用于从音频处理进程中获取音频特征
+    audio_out_queue: 用于从音频输出队列中获取音频帧
+    res_frame_queue: 结果帧队列，用于将生成的图像帧传递给其他进程
+    """
+
     ###
     vae, unet, pe = load_diffusion_model()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -76,33 +84,33 @@ def inference(render_event,batch_size,latents_out_path,audio_feat_queue,audio_ou
     counttime=0
     print('start inference')
     while True:
-        if render_event.is_set():
+        if render_event.is_set(): ## 进入推理过程，当渲染开始，则执行推理，否则等待一秒后继续检查
             starttime=time.perf_counter()
             try:
                 whisper_chunks = audio_feat_queue.get(block=True, timeout=1)
             except queue.Empty:
                 continue
-            is_all_silence=True
+            is_all_silence=True ## 默认音频为静音
             audio_frames = []
             for _ in range(batch_size*2):
                 frame,type = audio_out_queue.get()
                 audio_frames.append((frame,type))
                 if type==0: ## 若为0说明队列非空，还有东西，不是静音
                     is_all_silence=False
-            if is_all_silence:
+            if is_all_silence: ## 若全为静音，则不需要生成新的图像帧，直接使用现有的帧
                 for i in range(batch_size):
                     res_frame_queue.put((None,__mirror_index(length,index),audio_frames[i*2:i*2+2]))
                     index = index + 1
-            else:
+            else: ## 处理有声音的情况
                 # print('infer=======')
                 t=time.perf_counter()
-                whisper_batch = np.stack(whisper_chunks)
+                whisper_batch = np.stack(whisper_chunks) ## 将音频特征堆叠成一个数组
                 latent_batch = []
                 for i in range(batch_size):
                     idx = __mirror_index(length,index+i)
                     latent = input_latent_list_cycle[idx]
                     latent_batch.append(latent)
-                latent_batch = torch.cat(latent_batch, dim=0)
+                latent_batch = torch.cat(latent_batch, dim=0) ## 找到对饮的潜在向量，并拼接成一个大的batch
                 
                 # for i, (whisper_batch,latent_batch) in enumerate(gen):
                 audio_feature_batch = torch.from_numpy(whisper_batch)
